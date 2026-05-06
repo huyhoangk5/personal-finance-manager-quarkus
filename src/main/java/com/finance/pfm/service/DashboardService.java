@@ -53,6 +53,7 @@ public class DashboardService {
         for (Category cat : categories) {
             stats.put(cat.categoryName, 0.0);
         }
+        List<Object[]> results = transactionRepository.sumAmountByCategoryAndUserAndMonth(userId, month);
         for (Object[] result : results) {
             stats.put((String) result[0], convertToDouble(result[1]));
         }
@@ -79,10 +80,8 @@ public class DashboardService {
         for (int i = months - 1; i >= 0; i--) {
             LocalDate monthDate = now.minusMonths(i);
             String monthStr = monthDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
-            Double income = transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.THU, userId, monthStr);
-            Double expense = transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.CHI, userId, monthStr);
-            income = income != null ? income : 0.0;
-            expense = expense != null ? expense : 0.0;
+            Double income = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.THU, userId, monthStr));
+            Double expense = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.CHI, userId, monthStr));
             Map<String, Object> point = new HashMap<>();
             point.put("month", monthStr);
             point.put("income", income);
