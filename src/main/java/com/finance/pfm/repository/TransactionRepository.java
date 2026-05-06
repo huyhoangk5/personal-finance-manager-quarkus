@@ -27,17 +27,17 @@ public class TransactionRepository implements PanacheRepository<Transaction> {
                     "GROUP BY t.category.categoryName", userId).project(Object[].class).list();
     }
 
-    public Double sumAmountByTypeAndUser(Category.TransactionType type, Long userId) {
-        return find("SELECT SUM(t.amount) FROM Transaction t WHERE t.type = ?1 AND t.user.userId = ?2", type, userId).project(Double.class).firstResult();
+    public Object sumAmountByTypeAndUser(Category.TransactionType type, Long userId) {
+        return find("SELECT SUM(t.amount) FROM Transaction t WHERE t.type = ?1 AND t.user.userId = ?2", type, userId).project(Object.class).firstResult();
     }
 
-    public Double sumCurrentMonthSpending(Long userId, Long categoryId) {
+    public Object sumCurrentMonthSpending(Long userId, Long categoryId) {
         return find("SELECT SUM(t.amount) FROM Transaction t " +
                     "WHERE t.user.userId = ?1 " +
                     "AND t.category.categoryId = ?2 " +
                     "AND t.type = 'CHI' " +
                     "AND EXTRACT(MONTH FROM t.date) = EXTRACT(MONTH FROM CURRENT_DATE) " +
-                    "AND EXTRACT(YEAR FROM t.date) = EXTRACT(YEAR FROM CURRENT_DATE)", userId, categoryId).project(Double.class).firstResult();
+                    "AND EXTRACT(YEAR FROM t.date) = EXTRACT(YEAR FROM CURRENT_DATE)", userId, categoryId).project(Object.class).firstResult();
     }
 
     public List<Object[]> sumAmountByCategoryAndUserAndMonth(Long userId, String month) {
@@ -51,8 +51,8 @@ public class TransactionRepository implements PanacheRepository<Transaction> {
         delete("category", category);
     }
 
-    public Double sumAmountByTypeAndUserAndMonth(Category.TransactionType type, Long userId, String month) {
-        return find("SELECT SUM(t.amount) FROM Transaction t WHERE t.type = ?1 AND t.user.userId = ?2 AND TO_CHAR(t.date, 'YYYY-MM') = ?3", type, userId, month).project(Double.class).firstResult();
+    public Object sumAmountByTypeAndUserAndMonth(Category.TransactionType type, Long userId, String month) {
+        return find("SELECT SUM(t.amount) FROM Transaction t WHERE t.type = ?1 AND t.user.userId = ?2 AND TO_CHAR(t.date, 'YYYY-MM') = ?3", type, userId, month).project(Object.class).firstResult();
     }
 
     public List<Object[]> sumIncomeByCategoryAndUserAndMonth(Long userId, String month) {

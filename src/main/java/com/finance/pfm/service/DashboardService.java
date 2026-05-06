@@ -29,18 +29,15 @@ public class DashboardService {
 
         List<Object[]> results = transactionRepository.sumAmountByCategoryAndUser(userId);
         for (Object[] result : results) {
-            stats.put((String) result[0], (Double) result[1]);
+            stats.put((String) result[0], convertToDouble(result[1]));
         }
 
         return stats;
     }
 
     public Map<String, Double> getBalanceStats(Long userId) {
-        Double totalIncomes = transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.THU, userId);
-        Double totalExpenses = transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.CHI, userId);
-
-        totalIncomes = (totalIncomes != null) ? totalIncomes : 0.0;
-        totalExpenses = (totalExpenses != null) ? totalExpenses : 0.0;
+        Double totalIncomes = convertToDouble(transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.THU, userId));
+        Double totalExpenses = convertToDouble(transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.CHI, userId));
 
         Map<String, Double> stats = new HashMap<>();
         stats.put("totalIncomes", totalIncomes);
@@ -56,9 +53,8 @@ public class DashboardService {
         for (Category cat : categories) {
             stats.put(cat.categoryName, 0.0);
         }
-        List<Object[]> results = transactionRepository.sumAmountByCategoryAndUserAndMonth(userId, month);
         for (Object[] result : results) {
-            stats.put((String) result[0], (Double) result[1]);
+            stats.put((String) result[0], convertToDouble(result[1]));
         }
         return stats;
     }
@@ -70,7 +66,7 @@ public class DashboardService {
         for (Object[] row : results) {
             Map<String, Object> item = new HashMap<>();
             item.put("category", row[0]);
-            item.put("amount", row[1]);
+            item.put("amount", convertToDouble(row[1]));
             top.add(item);
         }
         top.sort((a, b) -> Double.compare((Double) b.get("amount"), (Double) a.get("amount")));
@@ -97,10 +93,8 @@ public class DashboardService {
     }
 
     public Map<String, Double> getBalanceStatsByMonth(Long userId, String month) {
-        Double totalIncomes = transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.THU, userId, month);
-        Double totalExpenses = transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.CHI, userId, month);
-        totalIncomes = totalIncomes != null ? totalIncomes : 0.0;
-        totalExpenses = totalExpenses != null ? totalExpenses : 0.0;
+        Double totalIncomes = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.THU, userId, month));
+        Double totalExpenses = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.CHI, userId, month));
         Map<String, Double> stats = new HashMap<>();
         stats.put("totalIncomes", totalIncomes);
         stats.put("totalExpenses", totalExpenses);
@@ -116,7 +110,7 @@ public class DashboardService {
         }
         List<Object[]> results = transactionRepository.sumIncomeByCategoryAndUserAndMonth(userId, month);
         for (Object[] result : results) {
-            stats.put((String) result[0], (Double) result[1]);
+            stats.put((String) result[0], convertToDouble(result[1]));
         }
         return stats;
     }
@@ -137,18 +131,26 @@ public class DashboardService {
         }
         for (Object[] row : incomes) {
             String dateStr = row[0].toString();
-            Double amount = (Double) row[1];
+            Double amount = convertToDouble(row[1]);
             if (dailyMap.containsKey(dateStr)) {
                 dailyMap.get(dateStr).put("income", amount);
             }
         }
         for (Object[] row : expenses) {
             String dateStr = row[0].toString();
-            Double amount = (Double) row[1];
+            Double amount = convertToDouble(row[1]);
             if (dailyMap.containsKey(dateStr)) {
                 dailyMap.get(dateStr).put("expense", amount);
             }
         }
         return dailyMap;
+    }
+
+    private Double convertToDouble(Object value) {
+        if (value == null) return 0.0;
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return 0.0;
     }
 }

@@ -31,8 +31,7 @@ public class BudgetService {
             return "CHƯA THIẾT LẬP: Danh mục này chưa có ngân sách cho tháng " + currentMonth;
         }
 
-        Double actualSpending = transactionRepository.sumCurrentMonthSpending(userId, categoryId);
-        if (actualSpending == null) actualSpending = 0.0;
+        Double actualSpending = convertToDouble(transactionRepository.sumCurrentMonthSpending(userId, categoryId));
 
         double totalForecast = actualSpending + newAmount;
         double percentage = (totalForecast / limit) * 100;
@@ -79,5 +78,13 @@ public class BudgetService {
 
         budgetRepository.persist(newBudgets);
         return "THÀNH CÔNG: Đã sao chép " + newBudgets.size() + " danh mục ngân sách từ tháng " + lastMonth + " sang tháng " + currentMonth;
+    }
+
+    private Double convertToDouble(Object value) {
+        if (value == null) return 0.0;
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return 0.0;
     }
 }
