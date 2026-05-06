@@ -1,6 +1,7 @@
 # Stage 1: Build
 FROM eclipse-temurin:21-jdk-jammy AS build
 WORKDIR /app
+ENV MVNW_SKIP_CHECKSUM=true
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 RUN chmod +x mvnw
