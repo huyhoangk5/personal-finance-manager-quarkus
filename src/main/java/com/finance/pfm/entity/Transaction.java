@@ -9,13 +9,20 @@ import java.time.LocalDate;
 public class Transaction extends PanacheEntityBase {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "transaction_id")
     public Long transactionId;
 
+    @Column(name = "amount")
     public Double amount;
+
+    @Column(name = "date")
     public LocalDate date;
+
+    @Column(name = "note")
     public String note;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "type")
     public Category.TransactionType type;
 
     @ManyToOne
