@@ -13,6 +13,7 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false, unique = true)
     public String username;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(nullable = false)
     public String password;
 
