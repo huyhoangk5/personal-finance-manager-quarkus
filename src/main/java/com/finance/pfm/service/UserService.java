@@ -10,9 +10,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
@@ -40,15 +37,6 @@ public class UserService {
 
     @Inject
     Mailer mailer;
-
-    @ConfigProperty(name = "twilio.account.sid", defaultValue = "")
-    String twilioAccountSid;
-
-    @ConfigProperty(name = "twilio.auth.token", defaultValue = "")
-    String twilioAuthToken;
-
-    @ConfigProperty(name = "twilio.phone.number", defaultValue = "")
-    String twilioPhoneNumber;
 
     private final Map<String, OtpData> otpStore = new ConcurrentHashMap<>();
     private final Map<String, QrSession> qrSessions = new ConcurrentHashMap<>();
@@ -82,10 +70,8 @@ public class UserService {
     }
 
     @PostConstruct
-    public void initTwilio() {
-        if (!twilioAccountSid.isEmpty()) {
-            Twilio.init(twilioAccountSid, twilioAuthToken);
-        }
+    public void init() {
+        // Initialization if needed
     }
 
     @Transactional
@@ -181,19 +167,7 @@ public class UserService {
     public String generateAndSendOtp(String phoneNumber) {
         String otp = String.format("%06d", new Random().nextInt(999999));
         otpStore.put(phoneNumber, new OtpData(otp));
-        if (!twilioAccountSid.isEmpty()) {
-            try {
-                Message.creator(
-                        new PhoneNumber(phoneNumber),
-                        new PhoneNumber(twilioPhoneNumber),
-                        "Mã OTP đăng nhập Finance Manager: " + otp
-                ).create();
-            } catch (Exception e) {
-                System.out.println("OTP for " + phoneNumber + " is " + otp);
-            }
-        } else {
-            System.out.println("OTP for " + phoneNumber + " is " + otp);
-        }
+        System.out.println("OTP for " + phoneNumber + " is " + otp + " (Twilio disabled)");
         return otp;
     }
 
