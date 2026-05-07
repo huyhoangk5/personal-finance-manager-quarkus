@@ -6,10 +6,11 @@ import com.finance.pfm.entity.UserQrCode;
 import com.finance.pfm.repository.PasswordResetTokenRepository;
 import com.finance.pfm.repository.UserQrCodeRepository;
 import com.finance.pfm.repository.UserRepository;
+import com.finance.pfm.util.ValidationUtil;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
@@ -17,7 +18,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -76,9 +76,50 @@ public class UserService {
 
     @Transactional
     public String registerUser(User user) {
-        if (userRepository.existsByUsername(user.username)) {
+        // Validate username
+        ValidationUtil.ValidationResult usernameValidation = ValidationUtil.validateUsername(user.username);
+        if (!usernameValidation.isValid()) {
+            return "Lỗi: " + usernameValidation.getFirstError();
+        }
+        
+        // Validate password
+        ValidationUtil.ValidationResult passwordValidation = ValidationUtil.validatePassword(user.password);
+        if (!passwordValidation.isValid()) {
+            return "Lỗi: " + passwordValidation.getFirstError();
+        }
+        
+        // Validate email if provided
+        if (user.email != null && !user.email.trim().isEmpty()) {
+            ValidationUtil.ValidationResult emailValidation = ValidationUtil.validateEmail(user.email);
+            if (!emailValidation.isValid()) {
+                return "Lỗi: " + emailValidation.getFirstError();
+            }
+            
+            // Check email uniqueness
+            Optional<User> existingEmail = userRepository.findByEmail(user.email.trim().toLowerCase());
+            if (existingEmail.isPresent()) {
+                return "Lỗi: Email đã tồn tại!";
+            }
+        }
+        
+        // Validate full name if provided
+        if (user.fullName != null && !user.fullName.trim().isEmpty()) {
+            ValidationUtil.ValidationResult fullNameValidation = ValidationUtil.validateFullName(user.fullName);
+            if (!fullNameValidation.isValid()) {
+                return "Lỗi: " + fullNameValidation.getFirstError();
+            }
+        }
+        
+        // Check username uniqueness
+        if (userRepository.existsByUsername(user.username.trim())) {
             return "Lỗi: Tên đăng nhập đã tồn tại!";
         }
+        
+        // Normalize data
+        user.username = ValidationUtil.normalizeString(user.username);
+        user.email = user.email != null ? ValidationUtil.normalizeString(user.email).toLowerCase() : null;
+        user.fullName = ValidationUtil.normalizeString(user.fullName);
+        
         user.password = BcryptUtil.bcryptHash(user.password);
         userRepository.persist(user);
         return "Đăng ký thành công!";

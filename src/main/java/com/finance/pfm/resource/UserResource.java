@@ -3,6 +3,7 @@ package com.finance.pfm.resource;
 import com.finance.pfm.entity.User;
 import com.finance.pfm.repository.UserRepository;
 import com.finance.pfm.service.UserService;
+import com.finance.pfm.util.ValidationUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -38,6 +39,15 @@ public class UserResource {
     public Response login(Map<String, String> credentials) {
         String username = credentials.get("username");
         String password = credentials.get("password");
+        
+        // Basic validation
+        if (username == null || username.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Tên đăng nhập không được để trống").build();
+        }
+        if (password == null || password.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Mật khẩu không được để trống").build();
+        }
+        
         Optional<User> user = userService.login(username, password);
         if (user.isPresent()) {
             return Response.ok(user.get()).build();
@@ -49,20 +59,17 @@ public class UserResource {
     @PUT
     @Path("/{userId}")
     public Response updateUser(@PathParam("userId") Long userId, User userDetails) {
+        String result = userService.updateUserProfile(userId, userDetails.fullName, userDetails.email);
+        if (result.contains("Lỗi")) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
+        }
+        
         Optional<User> optionalUser = userService.findById(userId);
         if (optionalUser.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
-        User user = optionalUser.get();
-        if (userDetails.fullName != null) user.fullName = userDetails.fullName;
-        if (userDetails.email != null) {
-            Optional<User> existingEmail = userRepository.findByEmail(userDetails.email);
-            if (existingEmail.isPresent() && !existingEmail.get().userId.equals(userId)) {
-                return Response.status(Response.Status.BAD_REQUEST).entity("Email đã tồn tại").build();
-            }
-            user.email = userDetails.email;
-        }
-        User updatedUser = userService.updateUser(user);
+        
+        User updatedUser = userService.updateUser(optionalUser.get());
         return Response.ok(updatedUser).build();
     }
 
@@ -70,6 +77,10 @@ public class UserResource {
     @Path("/google-login")
     public Response googleLogin(Map<String, String> payload) {
         String token = payload.get("token");
+        if (token == null || token.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Token Google không được để trống").build();
+        }
+        
         Optional<User> userOpt = userService.authenticateGoogle(token);
         if (userOpt.isPresent()) {
             return Response.ok(userOpt.get()).build();
@@ -82,6 +93,10 @@ public class UserResource {
     @Path("/facebook-login")
     public Response facebookLogin(Map<String, String> payload) {
         String token = payload.get("token");
+        if (token == null || token.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Token Facebook không được để trống").build();
+        }
+        
         Optional<User> userOpt = userService.authenticateFacebook(token);
         if (userOpt.isPresent()) {
             return Response.ok(userOpt.get()).build();
@@ -94,8 +109,11 @@ public class UserResource {
     @Path("/send-otp")
     public Response sendOtp(Map<String, String> payload) {
         String phoneNumber = payload.get("phoneNumber");
-        String otp = userService.generateAndSendOtp(phoneNumber);
-        return Response.ok("OTP đã được gửi (giả lập: " + otp + ")").build();
+        String result = userService.generateAndSendOtp(phoneNumber);
+        if (result.contains("Lỗi")) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
+        }
+        return Response.ok(result).build();
     }
 
     @POST
@@ -103,11 +121,19 @@ public class UserResource {
     public Response verifyOtp(Map<String, String> payload) {
         String phoneNumber = payload.get("phoneNumber");
         String otp = payload.get("otp");
+        
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Số điện thoại không được để trống").build();
+        }
+        if (otp == null || otp.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Mã OTP không được để trống").build();
+        }
+        
         Optional<User> userOpt = userService.verifyOtpAndCreateUser(phoneNumber, otp);
         if (userOpt.isPresent()) {
             return Response.ok(userOpt.get()).build();
         } else {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("OTP không hợp lệ").build();
+            return Response.status(Response.Status.UNAUTHORIZED).entity("OTP không hợp lệ hoặc đã hết hạn").build();
         }
     }
 
@@ -121,6 +147,10 @@ public class UserResource {
     @GET
     @Path("/qr-login/verify")
     public Response verifyQrToken(@QueryParam("token") String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Token không được để trống").build();
+        }
+        
         Optional<User> userOpt = userService.verifyQrToken(token);
         if (userOpt.isPresent()) {
             return Response.ok(userOpt.get()).build();
@@ -132,40 +162,69 @@ public class UserResource {
     @PUT
     @Path("/change-password")
     public Response changePassword(Map<String, String> payload) {
-        Long userId = Long.parseLong(payload.get("userId"));
-        String oldPassword = payload.get("oldPassword");
-        String newPassword = payload.get("newPassword");
-        boolean changed = userService.changePassword(userId, oldPassword, newPassword);
-        if (changed) {
-            return Response.ok("Đổi mật khẩu thành công").build();
-        } else {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Mật khẩu cũ không đúng hoặc user không tồn tại").build();
+        try {
+            Long userId = Long.parseLong(payload.get("userId"));
+            String oldPassword = payload.get("oldPassword");
+            String newPassword = payload.get("newPassword");
+            
+            String result = userService.changePassword(userId, oldPassword, newPassword);
+            if (result.contains("Lỗi")) {
+                return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
+            }
+            return Response.ok(result).build();
+        } catch (NumberFormatException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("User ID không hợp lệ").build();
         }
     }
 
     @GET
     @Path("/qr-code")
     public Response getUserQrCode(@QueryParam("userId") Long userId) {
-        String qrToken = userService.generateUserQrCode(userId);
-        return Response.ok(qrToken).build();
+        if (userId == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("User ID không được để trống").build();
+        }
+        
+        try {
+            String qrToken = userService.generateUserQrCode(userId);
+            return Response.ok(qrToken).build();
+        } catch (RuntimeException e) {
+            return Response.status(Response.Status.NOT_FOUND).entity("Không tìm thấy người dùng").build();
+        }
     }
 
     @POST
     @Path("/qr-login/confirm")
     public Response confirmQrLogin(Map<String, String> payload) {
         String qrToken = payload.get("qrToken");
-        Long userId = Long.parseLong(payload.get("userId"));
-        boolean confirmed = userService.confirmQrLogin(qrToken, userId);
-        if (confirmed) {
-            return Response.ok("Xác nhận thành công").build();
-        } else {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Xác nhận thất bại").build();
+        String userIdStr = payload.get("userId");
+        
+        if (qrToken == null || qrToken.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("QR Token không được để trống").build();
+        }
+        if (userIdStr == null || userIdStr.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("User ID không được để trống").build();
+        }
+        
+        try {
+            Long userId = Long.parseLong(userIdStr);
+            boolean confirmed = userService.confirmQrLogin(qrToken, userId);
+            if (confirmed) {
+                return Response.ok("Xác nhận thành công").build();
+            } else {
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Xác nhận thất bại").build();
+            }
+        } catch (NumberFormatException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("User ID không hợp lệ").build();
         }
     }
 
     @GET
     @Path("/qr-login/status")
     public Response getQrLoginStatus(@QueryParam("token") String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Token không được để trống").build();
+        }
+        
         Optional<User> userOpt = userService.getQrLoginUser(token);
         if (userOpt.isPresent()) {
             return Response.ok(userOpt.get()).build();
@@ -177,9 +236,15 @@ public class UserResource {
     @GET
     @Path("/qr-code-by-email")
     public Response getQrCodeByEmail(@QueryParam("email") String email) {
+        // Validate email
+        ValidationUtil.ValidationResult emailValidation = ValidationUtil.validateEmail(email);
+        if (!emailValidation.isValid()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(emailValidation.getFirstError()).build();
+        }
+        
         Optional<User> userOpt = userService.findByEmail(email);
         if (userOpt.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND).entity("Email không tồn tại").build();
+            return Response.status(Response.Status.NOT_FOUND).entity("Email không tồn tại trong hệ thống").build();
         }
         String qrToken = userService.generateUserQrCode(userOpt.get().userId);
         return Response.ok(qrToken).build();
@@ -189,11 +254,11 @@ public class UserResource {
     @Path("/forgot-password")
     public Response forgotPassword(Map<String, String> payload) {
         String email = payload.get("email");
-        String token = userService.createPasswordResetToken(email);
-        if (token == null) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Email không tồn tại").build();
+        String result = userService.createPasswordResetToken(email);
+        if (result.contains("Lỗi")) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
         }
-        userService.sendPasswordResetEmail(email, token);
+        userService.sendPasswordResetEmail(email, result);
         return Response.ok("Email đặt lại mật khẩu đã được gửi (kiểm tra console)").build();
     }
 
@@ -202,12 +267,12 @@ public class UserResource {
     public Response resetPassword(Map<String, String> payload) {
         String token = payload.get("token");
         String newPassword = payload.get("newPassword");
-        boolean success = userService.resetPassword(token, newPassword);
-        if (success) {
-            return Response.ok("Đặt lại mật khẩu thành công").build();
-        } else {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Token không hợp lệ hoặc đã hết hạn").build();
+        
+        String result = userService.resetPassword(token, newPassword);
+        if (result.contains("Lỗi")) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
         }
+        return Response.ok(result).build();
     }
 
     @POST
@@ -217,8 +282,24 @@ public class UserResource {
         String email = payload.get("email");
         String password = payload.get("password");
 
-        if (userRepository.findByEmail(email).isPresent()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Email đã tồn tại").build();
+        if (token == null || token.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Token không được để trống").build();
+        }
+
+        // Validate email
+        ValidationUtil.ValidationResult emailValidation = ValidationUtil.validateEmail(email);
+        if (!emailValidation.isValid()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(emailValidation.getFirstError()).build();
+        }
+
+        // Validate password
+        ValidationUtil.ValidationResult passwordValidation = ValidationUtil.validatePassword(password);
+        if (!passwordValidation.isValid()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(passwordValidation.getFirstError()).build();
+        }
+
+        if (userRepository.findByEmail(email.trim().toLowerCase()).isPresent()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Email đã tồn tại trong hệ thống").build();
         }
 
         Optional<User> userOpt = userService.registerWithQrToken(token, email, password);

@@ -33,14 +33,23 @@ public class TransactionResource {
 
     @POST
     public Response createTransaction(Transaction transaction) {
-        TransactionResponse response = transactionService.saveTransaction(transaction);
-        return Response.ok(response).build();
+        try {
+            TransactionResponse response = transactionService.saveTransaction(transaction);
+            return Response.ok(response).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        }
     }
 
     @GET
     @Path("/search")
-    public List<Transaction> search(@QueryParam("note") String note, @QueryParam("userId") Long userId) {
-        return transactionService.searchByNote(note, userId);
+    public Response search(@QueryParam("note") String note, @QueryParam("userId") Long userId) {
+        try {
+            List<Transaction> transactions = transactionService.searchByNote(note, userId);
+            return Response.ok(transactions).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        }
     }
 
     @GET
@@ -67,17 +76,13 @@ public class TransactionResource {
             Transaction transaction,
             @QueryParam("userId") Long userId) {
 
-        Optional<Transaction> existingOpt = transactionService.getTransactionById(id);
-        if (existingOpt.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+        try {
+            TransactionResponse response = transactionService.updateTransaction(id, transaction, userId);
+            return Response.ok(response).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
-
-        Transaction existing = existingOpt.get();
-        if (!existing.user.userId.equals(userId)) {
-            return Response.status(Response.Status.FORBIDDEN).entity("Bạn không có quyền sửa giao dịch này").build();
-        }
-
-        existing.amount = transaction.amount;
+    }
         existing.date = transaction.date;
         existing.note = transaction.note;
         existing.type = transaction.type;
