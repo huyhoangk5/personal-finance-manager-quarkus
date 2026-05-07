@@ -23,7 +23,7 @@ public class DashboardService {
     public Map<String, Double> getSpendingStats(Long userId) {
         Map<String, Double> stats = new HashMap<>();
 
-        categoryRepository.listAll().stream()
+        categoryRepository.findByUser_UserId(userId).stream()
                 .filter(cat -> cat.type == Category.TransactionType.CHI)
                 .forEach(cat -> stats.put(cat.categoryName, 0.0));
 
@@ -49,7 +49,7 @@ public class DashboardService {
 
     public Map<String, Double> getSpendingByCategoryAndMonth(Long userId, String month) {
         Map<String, Double> stats = new HashMap<>();
-        List<Category> categories = categoryRepository.findByType(Category.TransactionType.CHI);
+        List<Category> categories = categoryRepository.findByTypeAndUser_UserId(Category.TransactionType.CHI, userId);
         for (Category cat : categories) {
             stats.put(cat.categoryName, 0.0);
         }
@@ -103,7 +103,7 @@ public class DashboardService {
 
     public Map<String, Double> getIncomeByCategoryAndMonth(Long userId, String month) {
         Map<String, Double> stats = new HashMap<>();
-        List<Category> categories = categoryRepository.findByType(Category.TransactionType.THU);
+        List<Category> categories = categoryRepository.findByTypeAndUser_UserId(Category.TransactionType.THU, userId);
         for (Category cat : categories) {
             stats.put(cat.categoryName, 0.0);
         }
