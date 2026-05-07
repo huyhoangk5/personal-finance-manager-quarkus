@@ -11,7 +11,15 @@ public class CategoryRepository implements PanacheRepository<Category> {
         return list("type", type);
     }
 
-    public List<Category> findByCategoryNameContainingIgnoreCase(String name) {
-        return list("lower(categoryName) like ?1", "%" + name.toLowerCase() + "%");
+    public List<Category> findByUser_UserId(Long userId) {
+        return list("user.userId = ?1", userId);
+    }
+
+    public List<Category> findByTypeAndUser_UserId(Category.TransactionType type, Long userId) {
+        return list("type = ?1 and user.userId = ?2", type, userId);
+    }
+
+    public List<Category> findByCategoryNameContainingIgnoreCaseAndUser_UserId(String name, Long userId) {
+        return list("lower(categoryName) like ?1 and user.userId = ?2", "%" + name.toLowerCase() + "%", userId);
     }
 }

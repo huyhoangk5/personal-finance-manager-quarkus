@@ -20,13 +20,13 @@ public class CategoryService {
     TransactionRepository transactionRepository;
 
     @Transactional
-    public void deleteCategory(Long categoryId) {
+    public void deleteCategory(Long categoryId, Long userId) {
         Category category = categoryRepository.findById(categoryId);
-        if (category == null) {
-            throw new RuntimeException("Category not found");
+        if (category == null || (category.user != null && !category.user.userId.equals(userId))) {
+            throw new RuntimeException("Category not found or access denied");
         }
-        transactionRepository.deleteByCategory(category);
-        budgetRepository.deleteByCategory(category);
+        transactionRepository.deleteByUserIdAndCategory(userId, category);
+        budgetRepository.deleteByUserIdAndCategory(userId, category);
         categoryRepository.delete(category);
     }
 }

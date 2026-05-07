@@ -18,6 +18,10 @@ public class Category extends PanacheEntityBase {
     @Column(name = "type")
     public TransactionType type; // THU hoặc CHI
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    public User user;
+
     public enum TransactionType {
         THU, CHI
     }

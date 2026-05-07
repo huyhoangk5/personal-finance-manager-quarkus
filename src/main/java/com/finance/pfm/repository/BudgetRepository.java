@@ -22,10 +22,10 @@ public class BudgetRepository implements PanacheRepository<Budget> {
     }
 
     public List<Budget> findByUser_UserId(Long userId) {
-        return list("user.userId", userId);
+        return list("user.userId = ?1", userId);
     }
 
-    public void deleteByCategory(Category category) {
-        delete("category", category);
+    public void deleteByUserIdAndCategory(Long userId, Category category) {
+        delete("user.userId = ?1 and category = ?2", userId, category);
     }
 }

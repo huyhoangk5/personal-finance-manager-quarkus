@@ -9,7 +9,7 @@ import java.util.List;
 @ApplicationScoped
 public class TransactionRepository implements PanacheRepository<Transaction> {
     public List<Transaction> findByUser_UserId(Long userId) {
-        return list("user.userId", userId);
+        return list("user.userId = ?1", userId);
     }
 
     public List<Transaction> findByNoteContainingIgnoreCaseAndUser_UserId(String keyword, Long userId) {
@@ -47,8 +47,8 @@ public class TransactionRepository implements PanacheRepository<Transaction> {
                     "GROUP BY c.categoryName", userId, month).project(Object[].class).list();
     }
 
-    public void deleteByCategory(Category category) {
-        delete("category", category);
+    public void deleteByUserIdAndCategory(Long userId, Category category) {
+        delete("user.userId = ?1 and category = ?2", userId, category);
     }
 
     public Object sumAmountByTypeAndUserAndMonth(Category.TransactionType type, Long userId, String month) {
