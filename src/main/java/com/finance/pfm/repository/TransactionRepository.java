@@ -19,6 +19,10 @@ public class TransactionRepository implements PanacheRepository<Transaction> {
     public List<Transaction> findTop5ByUser_UserIdOrderByTransactionIdDesc(Long userId) {
         return find("user.userId = ?1 order by transactionId desc", userId).page(0, 5).list();
     }
+    
+    public long countByCategory_CategoryIdAndUser_UserId(Long categoryId, Long userId) {
+        return count("category.categoryId = ?1 and user.userId = ?2", categoryId, userId);
+    }
 
     public List<Object[]> sumAmountByCategoryAndUser(Long userId) {
         return find("SELECT t.category.categoryName, SUM(t.amount) " +
