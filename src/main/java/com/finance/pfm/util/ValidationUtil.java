@@ -14,6 +14,7 @@ public class ValidationUtil {
     private static final Pattern FULLNAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ỹ\\s\\.]{1,100}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^0\\d{9,10}$");
     private static final Pattern OTP_PATTERN = Pattern.compile("^\\d{6}$");
+    private static final Pattern CATEGORY_NAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ỹ\\s]{1,50}$");
     
     // Constants
     private static final double MAX_AMOUNT = 1_000_000_000_000.0; // 10^12
@@ -251,6 +252,10 @@ public class ValidationUtil {
         
         if (categoryName.length() < 1 || categoryName.length() > MAX_CATEGORY_NAME_LENGTH) {
             result.addError("Tên danh mục phải từ 1-" + MAX_CATEGORY_NAME_LENGTH + " ký tự");
+        }
+        
+        if (!CATEGORY_NAME_PATTERN.matcher(categoryName).matches()) {
+            result.addError("Tên danh mục chỉ được chứa chữ cái tiếng Việt và khoảng trắng, không chứa ký tự đặc biệt hoặc số");
         }
         
         return result;
