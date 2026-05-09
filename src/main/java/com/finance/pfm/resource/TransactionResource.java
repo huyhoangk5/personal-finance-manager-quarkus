@@ -1,7 +1,6 @@
 package com.finance.pfm.resource;
 
 import com.finance.pfm.dto.TransactionResponse;
-import com.finance.pfm.entity.Category;
 import com.finance.pfm.entity.Transaction;
 import com.finance.pfm.service.BudgetService;
 import com.finance.pfm.service.TransactionService;
@@ -12,7 +11,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Path("/api/transactions")
 @ApplicationScoped
@@ -82,26 +80,6 @@ public class TransactionResource {
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
-    }
-        existing.date = transaction.date;
-        existing.note = transaction.note;
-        existing.type = transaction.type;
-        if (transaction.category != null) {
-            existing.category = transaction.category;
-        }
-
-        Transaction updated = transactionService.updateTransaction(existing);
-
-        String message = "Cập nhật thành công";
-        if (updated.type == Category.TransactionType.CHI) {
-            message = budgetService.checkBudgetExceeded(
-                    userId,
-                    updated.category.categoryId,
-                    updated.amount
-            );
-        }
-
-        return Response.ok(new TransactionResponse(updated, message)).build();
     }
 
     @GET

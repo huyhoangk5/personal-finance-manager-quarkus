@@ -59,17 +59,41 @@ public class UserResource {
     @PUT
     @Path("/{userId}")
     public Response updateUser(@PathParam("userId") Long userId, User userDetails) {
-        String result = userService.updateUserProfile(userId, userDetails.fullName, userDetails.email);
-        if (result.contains("Lỗi")) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
-        }
-        
         Optional<User> optionalUser = userService.findById(userId);
         if (optionalUser.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
         
-        User updatedUser = userService.updateUser(optionalUser.get());
+        User user = optionalUser.get();
+        
+        // Validate and update full name if provided
+        if (userDetails.fullName != null && !userDetails.fullName.trim().isEmpty()) {
+            ValidationUtil.ValidationResult fullNameValidation = ValidationUtil.validateFullName(userDetails.fullName);
+            if (!fullNameValidation.isValid()) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Lỗi: " + fullNameValidation.getFirstError()).build();
+            }
+            user.fullName = ValidationUtil.normalizeString(userDetails.fullName);
+        }
+        
+        // Validate and update email if provided
+        if (userDetails.email != null && !userDetails.email.trim().isEmpty()) {
+            ValidationUtil.ValidationResult emailValidation = ValidationUtil.validateEmail(userDetails.email);
+            if (!emailValidation.isValid()) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Lỗi: " + emailValidation.getFirstError()).build();
+            }
+            
+            String normalizedEmail = ValidationUtil.normalizeString(userDetails.email).toLowerCase();
+            
+            // Check email uniqueness
+            Optional<User> existingEmail = userRepository.findByEmail(normalizedEmail);
+            if (existingEmail.isPresent() && !existingEmail.get().userId.equals(userId)) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Email đã tồn tại").build();
+            }
+            
+            user.email = normalizedEmail;
+        }
+        
+        User updatedUser = userService.updateUser(user);
         return Response.ok(updatedUser).build();
     }
 

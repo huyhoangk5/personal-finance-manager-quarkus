@@ -151,7 +151,7 @@ public class UserService {
     @Transactional
     public Optional<User> authenticateGoogle(String idTokenString) {
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(), JacksonFactory.getDefaultInstance())
+                new NetHttpTransport(), GsonFactory.getDefaultInstance())
                 .setAudience(Collections.singletonList("923508787768-tirtvocpu20jrba6khna61ppbqjv3idj.apps.googleusercontent.com"))
                 .build();
         try {
@@ -194,15 +194,34 @@ public class UserService {
     }
 
     @Transactional
-    public boolean changePassword(Long userId, String oldPassword, String newPassword) {
+    public String changePassword(Long userId, String oldPassword, String newPassword) {
         User user = userRepository.findById(userId);
-        if (user != null) {
-            if (BcryptUtil.matches(oldPassword, user.password)) {
-                user.password = BcryptUtil.bcryptHash(newPassword);
-                return true;
-            }
+        if (user == null) {
+            return "Lỗi: Không tìm thấy người dùng";
         }
-        return false;
+        
+        // Validate old password
+        if (oldPassword == null || oldPassword.isEmpty()) {
+            return "Lỗi: Mật khẩu cũ không được để trống";
+        }
+        
+        if (!BcryptUtil.matches(oldPassword, user.password)) {
+            return "Lỗi: Mật khẩu cũ không đúng";
+        }
+        
+        // Validate new password
+        ValidationUtil.ValidationResult passwordValidation = ValidationUtil.validatePassword(newPassword);
+        if (!passwordValidation.isValid()) {
+            return "Lỗi: " + passwordValidation.getFirstError();
+        }
+        
+        // Check if new password is different from old password
+        if (BcryptUtil.matches(newPassword, user.password)) {
+            return "Lỗi: Mật khẩu mới phải khác mật khẩu cũ";
+        }
+        
+        user.password = BcryptUtil.bcryptHash(newPassword);
+        return "Đổi mật khẩu thành công";
     }
 
     public String generateAndSendOtp(String phoneNumber) {
@@ -330,15 +349,26 @@ public class UserService {
     }
 
     @Transactional
-    public boolean resetPassword(String token, String newPassword) {
+    public String resetPassword(String token, String newPassword) {
+        if (token == null || token.trim().isEmpty()) {
+            return "Lỗi: Token không hợp lệ";
+        }
+        
+        // Validate new password
+        ValidationUtil.ValidationResult passwordValidation = ValidationUtil.validatePassword(newPassword);
+        if (!passwordValidation.isValid()) {
+            return "Lỗi: " + passwordValidation.getFirstError();
+        }
+        
         Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(token);
         if (tokenOpt.isEmpty() || tokenOpt.get().expiry.isBefore(LocalDateTime.now())) {
-            return false;
+            return "Lỗi: Token không hợp lệ hoặc đã hết hạn";
         }
+        
         User user = tokenOpt.get().user;
         user.password = BcryptUtil.bcryptHash(newPassword);
         passwordResetTokenRepository.delete(tokenOpt.get());
-        return true;
+        return "Đặt lại mật khẩu thành công";
     }
 
     @Transactional
