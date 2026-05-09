@@ -8,10 +8,10 @@ import java.util.List;
 public class ValidationUtil {
     
     // Regex patterns
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9]{3,20}$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9.@_-]{3,50}$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{6,16}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    private static final Pattern FULLNAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ỹ\\s]{1,100}$");
+    private static final Pattern FULLNAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ỹ\\s\\.]{1,100}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^0\\d{9,10}$");
     private static final Pattern OTP_PATTERN = Pattern.compile("^\\d{6}$");
     
@@ -51,12 +51,12 @@ public class ValidationUtil {
         
         username = username.trim();
         
-        if (username.length() < 3 || username.length() > 20) {
-            result.addError("Tên đăng nhập phải từ 3-20 ký tự");
+        if (username.length() < 3 || username.length() > 50) {
+            result.addError("Tên đăng nhập phải từ 3-50 ký tự");
         }
         
         if (!USERNAME_PATTERN.matcher(username).matches()) {
-            result.addError("Tên đăng nhập chỉ được chứa chữ cái và số, không có ký tự đặc biệt hoặc khoảng trắng");
+            result.addError("Tên đăng nhập không hợp lệ");
         }
         
         return result;
@@ -132,7 +132,7 @@ public class ValidationUtil {
             }
             
             if (!FULLNAME_PATTERN.matcher(fullName).matches()) {
-                result.addError("Họ và tên chỉ được chứa chữ cái và khoảng trắng");
+                result.addError("Họ và tên chỉ được chứa chữ cái, khoảng trắng và dấu chấm");
             }
         }
         
