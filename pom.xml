@@ -106,6 +106,12 @@
             <artifactId>quarkus-cache</artifactId>
         </dependency>
 
+        <!-- Redis Cache backend (This fixes "Unknown cache type: redis") -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-redis-cache</artifactId>
+        </dependency>
+
         <!-- Bucket4j Core — Rate Limiting (standalone, no Quarkiverse extension conflict) -->
         <dependency>
             <groupId>com.bucket4j</groupId>
