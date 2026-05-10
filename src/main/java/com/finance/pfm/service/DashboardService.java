@@ -3,6 +3,7 @@ package com.finance.pfm.service;
 import com.finance.pfm.entity.Category;
 import com.finance.pfm.repository.CategoryRepository;
 import com.finance.pfm.repository.TransactionRepository;
+import io.quarkus.cache.CacheResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.LocalDate;
@@ -20,6 +21,7 @@ public class DashboardService {
     @Inject
     CategoryRepository categoryRepository;
 
+    @CacheResult(cacheName = "spending-by-category")
     public Map<String, Double> getSpendingStats(Long userId) {
         Map<String, Double> stats = new HashMap<>();
 
@@ -35,6 +37,7 @@ public class DashboardService {
         return stats;
     }
 
+    @CacheResult(cacheName = "dashboard-balance")
     public Map<String, Double> getBalanceStats(Long userId) {
         Double totalIncomes = convertToDouble(transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.THU, userId));
         Double totalExpenses = convertToDouble(transactionRepository.sumAmountByTypeAndUser(Category.TransactionType.CHI, userId));
@@ -47,6 +50,7 @@ public class DashboardService {
         return stats;
     }
 
+    @CacheResult(cacheName = "spending-by-category")
     public Map<String, Double> getSpendingByCategoryAndMonth(Long userId, String month) {
         Map<String, Double> stats = new HashMap<>();
         List<Category> categories = categoryRepository.findByTypeAndUser_UserId(Category.TransactionType.CHI, userId);
@@ -91,6 +95,7 @@ public class DashboardService {
         return trend;
     }
 
+    @CacheResult(cacheName = "dashboard-balance")
     public Map<String, Double> getBalanceStatsByMonth(Long userId, String month) {
         Double totalIncomes = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.THU, userId, month));
         Double totalExpenses = convertToDouble(transactionRepository.sumAmountByTypeAndUserAndMonth(Category.TransactionType.CHI, userId, month));

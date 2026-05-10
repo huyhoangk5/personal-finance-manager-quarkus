@@ -11,6 +11,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import io.quarkus.cache.CacheInvalidateAll;
+import io.quarkus.cache.CacheResult;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
@@ -139,11 +141,13 @@ public class UserService {
         return Optional.empty();
     }
 
+    @CacheResult(cacheName = "user-profile")
     public Optional<User> findById(Long userId) {
         return Optional.ofNullable(userRepository.findById(userId));
     }
 
     @Transactional
+    @CacheInvalidateAll(cacheName = "user-profile")
     public User updateUser(User user) {
         return userRepository.getEntityManager().merge(user);
     }

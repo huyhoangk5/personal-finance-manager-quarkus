@@ -7,6 +7,7 @@ import com.finance.pfm.repository.CategoryRepository;
 import com.finance.pfm.repository.TransactionRepository;
 import com.finance.pfm.repository.UserRepository;
 import com.finance.pfm.util.ValidationUtil;
+import io.quarkus.cache.CacheInvalidateAll;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -36,6 +37,8 @@ public class TransactionService {
     }
 
     @Transactional
+    @CacheInvalidateAll(cacheName = "dashboard-balance")
+    @CacheInvalidateAll(cacheName = "spending-by-category")
     public TransactionResponse saveTransaction(Transaction transaction) {
         // Validate transaction data
         String validationError = validateTransaction(transaction);
@@ -77,6 +80,8 @@ public class TransactionService {
     }
     
     @Transactional
+    @CacheInvalidateAll(cacheName = "dashboard-balance")
+    @CacheInvalidateAll(cacheName = "spending-by-category")
     public TransactionResponse updateTransaction(Long transactionId, Transaction updatedTransaction, Long userId) {
         // Validate transaction data
         String validationError = validateTransaction(updatedTransaction);
@@ -223,6 +228,8 @@ public class TransactionService {
     }
 
     @Transactional
+    @CacheInvalidateAll(cacheName = "dashboard-balance")
+    @CacheInvalidateAll(cacheName = "spending-by-category")
     public boolean deleteTransaction(Long id, Long userId) {
         Transaction t = transactionRepository.findById(id);
         if (t != null && t.user.userId.equals(userId)) {

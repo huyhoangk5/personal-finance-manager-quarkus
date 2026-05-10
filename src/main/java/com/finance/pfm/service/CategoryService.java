@@ -6,6 +6,8 @@ import com.finance.pfm.repository.CategoryRepository;
 import com.finance.pfm.repository.TransactionRepository;
 import com.finance.pfm.repository.UserRepository;
 import com.finance.pfm.util.ValidationUtil;
+import io.quarkus.cache.CacheInvalidateAll;
+import io.quarkus.cache.CacheResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -27,6 +29,7 @@ public class CategoryService {
     UserRepository userRepository;
 
     @Transactional
+    @CacheInvalidateAll(cacheName = "categories")
     public String createCategory(Category category) {
         // Validate category name
         ValidationUtil.ValidationResult nameValidation = ValidationUtil.validateCategoryName(category.categoryName);
@@ -68,6 +71,7 @@ public class CategoryService {
     }
     
     @Transactional
+    @CacheInvalidateAll(cacheName = "categories")
     public String updateCategory(Long categoryId, Category updatedCategory, Long userId) {
         Category existing = categoryRepository.findById(categoryId);
         if (existing == null) {
@@ -110,10 +114,12 @@ public class CategoryService {
         return "Cập nhật danh mục thành công";
     }
     
+    @CacheResult(cacheName = "categories")
     public List<Category> getCategoriesByUserAndType(Long userId, Category.TransactionType type) {
         return categoryRepository.findByUser_UserIdAndType(userId, type);
     }
     
+    @CacheResult(cacheName = "categories")
     public List<Category> getCategoriesByUser(Long userId) {
         return categoryRepository.findByUser_UserId(userId);
     }
@@ -123,6 +129,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @CacheInvalidateAll(cacheName = "categories")
     public String deleteCategory(Long categoryId, Long userId) {
         Category category = categoryRepository.findById(categoryId);
         if (category == null) {

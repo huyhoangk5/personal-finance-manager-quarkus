@@ -92,6 +92,26 @@
             <artifactId>google-http-client-jackson2</artifactId>
             <version>1.43.3</version>
         </dependency>
+
+        <!-- ==================== REDIS ==================== -->
+        <!-- Quarkus Redis Client (managed by Quarkus BOM) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-redis-client</artifactId>
+        </dependency>
+
+        <!-- Quarkus Cache (managed by Quarkus BOM) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-cache</artifactId>
+        </dependency>
+
+        <!-- Bucket4j Core — Rate Limiting (standalone, no Quarkiverse extension conflict) -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
     </dependencies>
 
     <build>
