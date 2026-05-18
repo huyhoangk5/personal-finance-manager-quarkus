@@ -38,21 +38,33 @@ public class JwtService {
     @ConfigProperty(name = "mp.jwt.verify.issuer", defaultValue = "finance-manager")
     String issuer;
 
+    @ConfigProperty(name = "smallrye.jwt.sign.key", defaultValue = "")
+    String privateKeyContent;
+
+    @ConfigProperty(name = "smallrye.jwt.sign.key.location", defaultValue = "privateKey.pem")
+    String privateKeyLocation;
+
     /**
      * Tạo access token JWT, lưu vào Redis với TTL = 15 phút.
      */
     public String generateAccessToken(User user) {
         String role = user.role != null ? user.role.name() : "USER";
 
-        String token = Jwt.issuer(issuer)
+        io.smallrye.jwt.build.JwtClaimsBuilder builder = Jwt.issuer(issuer)
                 .subject(String.valueOf(user.userId))
                 .groups(Set.of(role))
                 .claim("username", user.username)
                 .claim("email", user.email != null ? user.email : "")
                 .claim("fullName", user.fullName != null ? user.fullName : "")
                 .claim("role", role)
-                .expiresIn(ACCESS_TOKEN_EXPIRY_SECONDS)
-                .sign();
+                .expiresIn(ACCESS_TOKEN_EXPIRY_SECONDS);
+
+        String token;
+        if (privateKeyContent != null && !privateKeyContent.trim().isEmpty()) {
+            token = builder.sign(privateKeyContent);
+        } else {
+            token = builder.sign(privateKeyLocation);
+        }
 
         // Lưu token vào Redis để có thể revoke
         try {
