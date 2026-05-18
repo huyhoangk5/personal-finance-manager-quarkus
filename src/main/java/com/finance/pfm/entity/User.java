@@ -34,10 +34,10 @@ public class User extends PanacheEntityBase {
     public String email;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
+    @Column(name = "role", nullable = true, length = 20)
     public Role role = Role.USER;
 
-    @Column(name = "is_locked", nullable = false)
+    @Column(name = "is_locked", nullable = true)
     public boolean locked = false;
 
     @Column(name = "created_at")

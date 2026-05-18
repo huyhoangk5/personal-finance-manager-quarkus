@@ -78,6 +78,10 @@ public class UserService {
     @Transactional
     public void onStart(@jakarta.enterprise.event.Observes io.quarkus.runtime.StartupEvent ev) {
         try {
+            // Tự động cập nhật các bản ghi cũ chưa có cột role và locked
+            User.update("role = ?1 where role is null", User.Role.USER);
+            User.update("locked = false where locked is null");
+
             if (userRepository.count("role = ?1", User.Role.ADMIN) == 0) {
                 User admin = new User();
                 admin.username = "admin";
