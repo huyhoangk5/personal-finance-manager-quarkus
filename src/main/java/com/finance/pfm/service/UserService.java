@@ -20,6 +20,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -39,6 +40,9 @@ public class UserService {
 
     @Inject
     Mailer mailer;
+
+    @ConfigProperty(name = "app.frontend.url", defaultValue = "http://localhost:5173")
+    String frontendUrl;
 
     private final Map<String, OtpData> otpStore = new ConcurrentHashMap<>();
     private final Map<String, QrSession> qrSessions = new ConcurrentHashMap<>();
@@ -341,7 +345,7 @@ public class UserService {
     }
 
     public void sendPasswordResetEmail(String email, String token) {
-        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
         System.out.println("Link đặt lại mật khẩu: " + resetLink);
         try {
             mailer.send(Mail.withText(email, 
