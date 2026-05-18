@@ -15,6 +15,8 @@ public class UserDTO {
     public boolean locked;
     public LocalDateTime createdAt;
     public LocalDateTime lastLoginAt;
+    public String authType;
+    public String otpStatus;
 
     public static UserDTO from(User user) {
         UserDTO dto = new UserDTO();
@@ -26,6 +28,30 @@ public class UserDTO {
         dto.locked = user.locked;
         dto.createdAt = user.createdAt;
         dto.lastLoginAt = user.lastLoginAt;
+
+        // Xử lý loại xác thực và trạng thái OTP dựa trên thông tin sẵn có
+        if (user.username != null) {
+            if (user.username.startsWith("qr_")) {
+                dto.authType = "QR Code";
+                dto.otpStatus = "Không dùng";
+            } else if (user.username.contains("facebook") || (user.fullName != null && user.fullName.contains("Facebook"))) {
+                dto.authType = "Facebook OAuth";
+                dto.otpStatus = "Đã liên kết";
+            } else if (user.username.contains("google") || (user.fullName != null && user.fullName.contains("Google"))) {
+                dto.authType = "Google OAuth";
+                dto.otpStatus = "Đã liên kết";
+            } else if (user.username.matches("^\\+?[0-9]{8,15}$")) {
+                dto.authType = "Số điện thoại (OTP)";
+                dto.otpStatus = "Đang kích hoạt";
+            } else {
+                dto.authType = "Mật khẩu truyền thống";
+                dto.otpStatus = (user.email != null && !user.email.isEmpty()) ? "Đã xác thực Email" : "Chưa xác thực OTP";
+            }
+        } else {
+            dto.authType = "Không xác định";
+            dto.otpStatus = "Không dùng";
+        }
+
         return dto;
     }
 }

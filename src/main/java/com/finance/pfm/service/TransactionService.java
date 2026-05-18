@@ -1,5 +1,6 @@
 package com.finance.pfm.service;
 
+import com.finance.pfm.dto.TransactionDTO;
 import com.finance.pfm.dto.TransactionResponse;
 import com.finance.pfm.entity.Category;
 import com.finance.pfm.entity.Transaction;
@@ -76,7 +77,7 @@ public class TransactionService {
         }
 
         transactionRepository.persist(transaction);
-        return new TransactionResponse(transaction, message);
+        return new TransactionResponse(TransactionDTO.from(transaction), message);
     }
     
     @Transactional
@@ -128,7 +129,7 @@ public class TransactionService {
             );
         }
         
-        return new TransactionResponse(existing, message);
+        return new TransactionResponse(TransactionDTO.from(existing), message);
     }
     
     private String validateTransaction(Transaction transaction) {
