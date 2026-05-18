@@ -3,6 +3,7 @@ package com.finance.pfm.entity;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -31,4 +32,21 @@ public class User extends PanacheEntityBase {
     @Email(message = "Email không đúng định dạng")
     @Column(unique = true, name = "email")
     public String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    public Role role = Role.USER;
+
+    @Column(name = "is_locked", nullable = false)
+    public boolean locked = false;
+
+    @Column(name = "created_at")
+    public LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "last_login_at")
+    public LocalDateTime lastLoginAt;
+
+    public enum Role {
+        USER, ADMIN
+    }
 }

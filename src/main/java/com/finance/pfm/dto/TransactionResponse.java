@@ -1,6 +1,8 @@
 package com.finance.pfm.dto;
 
-import com.finance.pfm.entity.Transaction;
-
-public record TransactionResponse(Transaction transaction, String budgetMessage) {
+/**
+ * DTO trả về sau khi tạo/cập nhật giao dịch.
+ * Dùng TransactionDTO thay vì Entity trực tiếp.
+ */
+public record TransactionResponse(TransactionDTO transaction, String budgetMessage) {
 }
