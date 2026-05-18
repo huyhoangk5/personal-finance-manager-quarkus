@@ -9,24 +9,24 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * JwtAuthFilter — kiểm tra Bearer token trên các endpoint cần bảo vệ.
  * Kết nối với Redis để kiểm tra trạng thái token (Blacklist/Revocation).
  */
 @Provider
-@Priority(Priorities.AUTHENTICATION) // Chạy ngay sau khi SmallRye JWT verify signature
+@Priority(Priorities.AUTHENTICATION)
 public class JwtAuthFilter implements ContainerRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(JwtAuthFilter.class);
-
-    @Inject
-    JsonWebToken jwt;
 
     @Inject
     RedisDataSource redisDataSource;
@@ -84,34 +84,40 @@ public class JwtAuthFilter implements ContainerRequestFilter {
             return;
         }
 
-        // Xác thực bổ sung bằng Redis (Chống token hack/revoked/bị khóa tài khoản)
-        if (jwt != null && jwt.getSubject() != null) {
-            String token = authHeader.substring(7);
+        String token = authHeader.substring(7);
+        
+        // Giải mã thủ công JWT Payload để lấy userId (sub) vì trong JAX-RS Filter 
+        // của Quarkus RESTEasy Reactive, authentication context được tải lazy và 
+        // chưa sẵn sàng ở giai đoạn filter này.
+        String userId = getSubjectFromToken(token);
+
+        if (userId != null) {
             String tokenSuffix = token.length() > 20 ? token.substring(token.length() - 20) : token;
-            String redisKey = "jwt:access:" + jwt.getSubject() + ":" + tokenSuffix;
+            String redisKey = "jwt:access:" + userId + ":" + tokenSuffix;
 
             try {
                 ValueCommands<String, String> commands = redisDataSource.value(String.class);
                 String tokenStatus = commands.get(redisKey);
 
                 if (tokenStatus == null) {
-                    LOG.warnf("Token đã bị thu hồi hoặc đăng xuất khỏi Redis: userId=%s", jwt.getSubject());
+                    LOG.warnf("Token đã bị thu hồi hoặc đăng xuất khỏi Redis: userId=%s", userId);
                     requestContext.abortWith(
                             Response.status(Response.Status.UNAUTHORIZED)
-                                    .entity("{\"error\": \"Unauthorized\", \"message\": \"Token đã bị thu hồi, tài khoản bị khóa hoặc đã đăng xuất!\"}")
+                                    .entity("{\"error\": \"Unauthorized\", \"message\": \"Phiên đăng nhập đã hết hạn hoặc tài khoản của bạn bị khóa!\"}")
                                     .header("Content-Type", "application/json")
                                     .build()
                     );
                 }
             } catch (Exception e) {
                 LOG.error("Lỗi khi kết nối Redis để kiểm tra token: " + e.getMessage());
-                // Fallback: Trong môi trường dev/production, nếu Redis tạm thời down, cho qua để không ngắt quãng dịch vụ
+                // Fallback: Nếu Redis tạm thời sập, vẫn cho phép đi tiếp để không gây gián đoạn dịch vụ hệ thống
             }
         } else {
-            // SmallRye JWT không thể giải mã token hợp lệ
+            // Token không hợp lệ hoặc không chứa claim "sub"
+            LOG.warn("Token không chứa claim subject hoặc không đúng định dạng JWT");
             requestContext.abortWith(
                     Response.status(Response.Status.UNAUTHORIZED)
-                            .entity("{\"error\": \"Unauthorized\", \"message\": \"Mã Token không hợp lệ hoặc đã hết hạn signature!\"}")
+                            .entity("{\"error\": \"Unauthorized\", \"message\": \"Mã Token không đúng định dạng hoặc đã hết hạn!\"}")
                             .header("Content-Type", "application/json")
                             .build()
             );
@@ -120,8 +126,29 @@ public class JwtAuthFilter implements ContainerRequestFilter {
 
     private boolean isPublicPath(String path) {
         if (PUBLIC_PATHS.contains(path) || PUBLIC_PATHS.contains("/" + path)) return true;
-        // Swagger UI paths
         if (path.startsWith("/q/") || path.startsWith("q/") || path.startsWith("/swagger-ui") || path.startsWith("/openapi")) return true;
         return false;
+    }
+
+    /**
+     * Helper giải mã thủ công payload của JWT và trích xuất claim "sub" (userId)
+     */
+    private String getSubjectFromToken(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length >= 2) {
+                String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+                
+                // Trích xuất "sub" bằng Regex nhanh chóng, tránh dùng thư viện JSON bên ngoài
+                Pattern pattern = Pattern.compile("\"sub\"\\s*:\\s*\"([^\"]+)\"");
+                Matcher matcher = pattern.matcher(payloadJson);
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Lỗi giải mã payload JWT thủ công: " + e.getMessage());
+        }
+        return null;
     }
 }
