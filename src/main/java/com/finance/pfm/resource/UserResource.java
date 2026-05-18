@@ -80,6 +80,11 @@ public class UserResource {
         Optional<User> userOpt = userService.login(username, password);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.locked) {
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Tài khoản của bạn đã bị khóa! Vui lòng liên hệ quản trị viên.")
+                        .build();
+            }
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
             AuthResponse response = new AuthResponse(accessToken, refreshToken, 900, UserDTO.from(user));
@@ -101,6 +106,11 @@ public class UserResource {
         Optional<User> userOpt = jwtService.validateRefreshToken(refreshToken);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.locked) {
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Tài khoản của bạn đã bị khóa! Không thể làm mới token.")
+                        .build();
+            }
             String newAccessToken = jwtService.generateAccessToken(user);
             String newRefreshToken = jwtService.generateRefreshToken(user);
             AuthResponse response = new AuthResponse(newAccessToken, newRefreshToken, 900, UserDTO.from(user));
@@ -133,6 +143,11 @@ public class UserResource {
         Optional<User> userOpt = userService.authenticateGoogle(token);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.locked) {
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Tài khoản của bạn đã bị khóa! Vui lòng liên hệ quản trị viên.")
+                        .build();
+            }
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
             AuthResponse response = new AuthResponse(accessToken, refreshToken, 900, UserDTO.from(user));
@@ -154,6 +169,11 @@ public class UserResource {
         Optional<User> userOpt = userService.authenticateFacebook(token);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.locked) {
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Tài khoản của bạn đã bị khóa! Vui lòng liên hệ quản trị viên.")
+                        .build();
+            }
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
             AuthResponse response = new AuthResponse(accessToken, refreshToken, 900, UserDTO.from(user));
@@ -466,6 +486,11 @@ public class UserResource {
         Optional<User> userOpt = userService.verifyOtpAndCreateUser(phoneNumber, otp);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.locked) {
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Tài khoản của bạn đã bị khóa! Vui lòng liên hệ quản trị viên.")
+                        .build();
+            }
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
             return Response.ok(new AuthResponse(accessToken, refreshToken, 900, UserDTO.from(user))).build();

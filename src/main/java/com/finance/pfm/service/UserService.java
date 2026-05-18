@@ -75,9 +75,23 @@ public class UserService {
         boolean isValid() { return LocalDateTime.now().isBefore(expiry); }
     }
 
-    @PostConstruct
-    public void init() {
-        // Initialization if needed
+    @Transactional
+    public void onStart(@jakarta.enterprise.event.Observes io.quarkus.runtime.StartupEvent ev) {
+        try {
+            if (userRepository.count("role = ?1", User.Role.ADMIN) == 0) {
+                User admin = new User();
+                admin.username = "admin";
+                admin.password = BcryptUtil.bcryptHash("Admin@123456");
+                admin.email = "admin@finance.com";
+                admin.fullName = "Quản trị viên hệ thống";
+                admin.role = User.Role.ADMIN;
+                admin.locked = false;
+                userRepository.persist(admin);
+                System.out.println(">>> ĐÃ KHỞI TẠO TÀI KHOẢN ADMIN MẶC ĐỊNH: admin / Admin@123456");
+            }
+        } catch (Exception e) {
+            System.err.println(">>> Lỗi khi khởi tạo tài khoản Admin: " + e.getMessage());
+        }
     }
 
     @Transactional
