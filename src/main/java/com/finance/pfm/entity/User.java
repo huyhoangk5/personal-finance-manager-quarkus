@@ -38,7 +38,11 @@ public class User extends PanacheEntityBase {
     public Role role = Role.USER;
 
     @Column(name = "is_locked", nullable = true)
-    public boolean locked = false;
+    public Boolean locked = false;
+
+    public boolean isLocked() {
+        return Boolean.TRUE.equals(locked);
+    }
 
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();

@@ -25,7 +25,7 @@ public class UserDTO {
         dto.fullName = user.fullName;
         dto.email = user.email;
         dto.role = user.role != null ? user.role.name() : "USER";
-        dto.locked = user.locked;
+        dto.locked = user.isLocked();
         dto.createdAt = user.createdAt;
         dto.lastLoginAt = user.lastLoginAt;
 

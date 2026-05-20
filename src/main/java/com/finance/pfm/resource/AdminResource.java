@@ -83,17 +83,17 @@ public class AdminResource {
                     .build();
         }
 
-        user.locked = !user.locked;
+        user.locked = !user.isLocked();
         userService.updateUser(user);
 
         // Nếu bị khóa, thu hồi ngay lập tức tất cả JWT token
-        if (user.locked) {
+        if (user.isLocked()) {
             jwtService.revokeAllTokens(user.userId);
         }
 
-        String action = user.locked ? "LOCK_USER" : "UNLOCK_USER";
+        String action = user.isLocked() ? "LOCK_USER" : "UNLOCK_USER";
         auditLogService.log(adminId, action, "USER", user.userId,
-                "Admin " + ctx.getUserPrincipal().getName() + (user.locked ? " đã khóa " : " đã mở khóa ") + "tài khoản " + user.username,
+                "Admin " + ctx.getUserPrincipal().getName() + (user.isLocked() ? " đã khóa " : " đã mở khóa ") + "tài khoản " + user.username,
                 "ADMIN_CONSOLE");
 
         return Response.ok(UserDTO.from(user)).build();
