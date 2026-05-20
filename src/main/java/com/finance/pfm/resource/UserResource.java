@@ -21,6 +21,19 @@ import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import com.finance.pfm.dto.request.LoginRequest;
+import com.finance.pfm.dto.request.RefreshTokenRequest;
+import com.finance.pfm.dto.request.LogoutRequest;
+import com.finance.pfm.dto.request.GoogleLoginRequest;
+import com.finance.pfm.dto.request.FacebookLoginRequest;
+import com.finance.pfm.dto.request.ForgotPasswordRequest;
+import com.finance.pfm.dto.request.ResetPasswordRequest;
+import com.finance.pfm.dto.request.ConfirmQrLoginRequest;
+import com.finance.pfm.dto.request.QrRegisterRequest;
+import com.finance.pfm.dto.request.ChangePasswordRequest;
+import com.finance.pfm.dto.request.SendOtpRequest;
+import com.finance.pfm.dto.request.VerifyOtpRequest;
 
 import java.util.Map;
 import java.util.Optional;
@@ -66,16 +79,9 @@ public class UserResource {
     @POST
     @Path("/login")
     @Operation(summary = "Đăng nhập, trả về JWT access token + refresh token")
-    public Response login(Map<String, String> credentials) {
-        String username = credentials.get("username");
-        String password = credentials.get("password");
-
-        if (username == null || username.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Tên đăng nhập không được để trống").build();
-        }
-        if (password == null || password.isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Mật khẩu không được để trống").build();
-        }
+    public Response login(@Valid LoginRequest credentials) {
+        String username = credentials.getUsername();
+        String password = credentials.getPassword();
 
         Optional<User> userOpt = userService.login(username, password);
         if (userOpt.isPresent()) {
@@ -97,11 +103,8 @@ public class UserResource {
     @POST
     @Path("/refresh-token")
     @Operation(summary = "Làm mới access token bằng refresh token")
-    public Response refreshToken(Map<String, String> payload) {
-        String refreshToken = payload.get("refreshToken");
-        if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Refresh token không được để trống").build();
-        }
+    public Response refreshToken(@Valid RefreshTokenRequest payload) {
+        String refreshToken = payload.getRefreshToken();
 
         Optional<User> userOpt = jwtService.validateRefreshToken(refreshToken);
         if (userOpt.isPresent()) {
@@ -123,8 +126,8 @@ public class UserResource {
     @POST
     @Path("/logout")
     @Operation(summary = "Đăng xuất, revoke refresh token")
-    public Response logout(Map<String, String> payload) {
-        String refreshToken = payload.get("refreshToken");
+    public Response logout(@Valid LogoutRequest payload) {
+        String refreshToken = payload.getRefreshToken();
         if (refreshToken != null && !refreshToken.trim().isEmpty()) {
             jwtService.revokeRefreshToken(refreshToken);
         }
@@ -134,11 +137,8 @@ public class UserResource {
     @POST
     @Path("/google-login")
     @Operation(summary = "Đăng nhập bằng Google OAuth")
-    public Response googleLogin(Map<String, String> payload) {
-        String token = payload.get("token");
-        if (token == null || token.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Token Google không được để trống").build();
-        }
+    public Response googleLogin(@Valid GoogleLoginRequest payload) {
+        String token = payload.getToken();
 
         Optional<User> userOpt = userService.authenticateGoogle(token);
         if (userOpt.isPresent()) {
@@ -160,11 +160,8 @@ public class UserResource {
     @POST
     @Path("/facebook-login")
     @Operation(summary = "Đăng nhập bằng Facebook (chưa hỗ trợ)")
-    public Response facebookLogin(Map<String, String> payload) {
-        String token = payload.get("token");
-        if (token == null || token.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Token Facebook không được để trống").build();
-        }
+    public Response facebookLogin(@Valid FacebookLoginRequest payload) {
+        String token = payload.getToken();
 
         Optional<User> userOpt = userService.authenticateFacebook(token);
         if (userOpt.isPresent()) {
@@ -186,8 +183,8 @@ public class UserResource {
     @POST
     @Path("/forgot-password")
     @Operation(summary = "Gửi email đặt lại mật khẩu")
-    public Response forgotPassword(Map<String, String> payload) {
-        String email = payload.get("email");
+    public Response forgotPassword(@Valid ForgotPasswordRequest payload) {
+        String email = payload.getEmail();
         String result = userService.createPasswordResetToken(email);
         if (result == null || result.contains("Lỗi")) {
             return Response.status(Response.Status.BAD_REQUEST).entity("Email không tồn tại trong hệ thống").build();
@@ -199,9 +196,9 @@ public class UserResource {
     @POST
     @Path("/reset-password")
     @Operation(summary = "Đặt lại mật khẩu bằng token")
-    public Response resetPassword(Map<String, String> payload) {
-        String token = payload.get("token");
-        String newPassword = payload.get("newPassword");
+    public Response resetPassword(@Valid ResetPasswordRequest payload) {
+        String token = payload.getToken();
+        String newPassword = payload.getNewPassword();
 
         String result = userService.resetPassword(token, newPassword);
         if (result.contains("Lỗi")) {
@@ -280,12 +277,8 @@ public class UserResource {
     @RolesAllowed({"USER", "ADMIN"})
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Xác nhận đăng nhập QR từ thiết bị đã đăng nhập")
-    public Response confirmQrLogin(Map<String, String> payload, @Context SecurityContext ctx) {
-        String qrToken = payload.get("qrToken");
-
-        if (qrToken == null || qrToken.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("QR Token không được để trống").build();
-        }
+    public Response confirmQrLogin(@Valid ConfirmQrLoginRequest payload, @Context SecurityContext ctx) {
+        String qrToken = payload.getQrToken();
 
         try {
             Long userId = Long.parseLong(ctx.getUserPrincipal().getName());
@@ -303,14 +296,10 @@ public class UserResource {
     @POST
     @Path("/qr-register")
     @Operation(summary = "Đăng ký tài khoản qua QR")
-    public Response qrRegister(Map<String, String> payload) {
-        String token = payload.get("token");
-        String email = payload.get("email");
-        String password = payload.get("password");
-
-        if (token == null || token.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Token không được để trống").build();
-        }
+    public Response qrRegister(@Valid QrRegisterRequest payload) {
+        String token = payload.getToken();
+        String email = payload.getEmail();
+        String password = payload.getPassword();
 
         ValidationUtil.ValidationResult emailValidation = ValidationUtil.validateEmail(email);
         if (!emailValidation.isValid()) {
@@ -430,10 +419,10 @@ public class UserResource {
     @RolesAllowed({"USER", "ADMIN"})
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Đổi mật khẩu")
-    public Response changePassword(Map<String, String> payload, @Context SecurityContext ctx) {
+    public Response changePassword(@Valid ChangePasswordRequest payload, @Context SecurityContext ctx) {
         Long userId = Long.parseLong(ctx.getUserPrincipal().getName());
-        String oldPassword = payload.get("oldPassword");
-        String newPassword = payload.get("newPassword");
+        String oldPassword = payload.getOldPassword();
+        String newPassword = payload.getNewPassword();
 
         String result = userService.changePassword(userId, oldPassword, newPassword);
         if (result.contains("Lỗi")) {
@@ -460,8 +449,8 @@ public class UserResource {
     @POST
     @Path("/send-otp")
     @Operation(summary = "Gửi OTP (chưa hỗ trợ)")
-    public Response sendOtp(Map<String, String> payload) {
-        String phoneNumber = payload.get("phoneNumber");
+    public Response sendOtp(@Valid SendOtpRequest payload) {
+        String phoneNumber = payload.getPhoneNumber();
         String result = userService.generateAndSendOtp(phoneNumber);
         if (result.contains("Lỗi")) {
             return Response.status(Response.Status.BAD_REQUEST).entity(result).build();
@@ -472,16 +461,9 @@ public class UserResource {
     @POST
     @Path("/verify-otp")
     @Operation(summary = "Xác thực OTP (chưa hỗ trợ)")
-    public Response verifyOtp(Map<String, String> payload) {
-        String phoneNumber = payload.get("phoneNumber");
-        String otp = payload.get("otp");
-
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Số điện thoại không được để trống").build();
-        }
-        if (otp == null || otp.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Mã OTP không được để trống").build();
-        }
+    public Response verifyOtp(@Valid VerifyOtpRequest payload) {
+        String phoneNumber = payload.getPhoneNumber();
+        String otp = payload.getOtp();
 
         Optional<User> userOpt = userService.verifyOtpAndCreateUser(phoneNumber, otp);
         if (userOpt.isPresent()) {

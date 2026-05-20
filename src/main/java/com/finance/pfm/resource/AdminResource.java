@@ -21,6 +21,9 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
+import com.finance.pfm.dto.request.AdminResetPasswordRequest;
+import com.finance.pfm.dto.request.AdminChangeRoleRequest;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -134,7 +137,7 @@ public class AdminResource {
     @Path("/users/{id}/reset-password")
     @Transactional
     @Operation(summary = "Đặt lại mật khẩu cho người dùng")
-    public Response resetPassword(@PathParam("id") Long id, Map<String, String> payload, @Context SecurityContext ctx) {
+    public Response resetPassword(@PathParam("id") Long id, @Valid AdminResetPasswordRequest payload, @Context SecurityContext ctx) {
         Long adminId = Long.parseLong(ctx.getUserPrincipal().getName());
         User user = userRepository.findById(id);
         if (user == null) {
@@ -143,7 +146,7 @@ public class AdminResource {
                     .build();
         }
 
-        String newPassword = payload != null ? payload.get("newPassword") : null;
+        String newPassword = payload != null ? payload.getNewPassword() : null;
         if (newPassword == null || newPassword.trim().isEmpty()) {
             // Tự động sinh mật khẩu tạm thời
             newPassword = "Temp@" + String.format("%06d", new Random().nextInt(999999));
@@ -175,7 +178,7 @@ public class AdminResource {
     @Path("/users/{id}/role")
     @Transactional
     @Operation(summary = "Phân quyền (USER hoặc ADMIN)")
-    public Response changeRole(@PathParam("id") Long id, Map<String, String> payload, @Context SecurityContext ctx) {
+    public Response changeRole(@PathParam("id") Long id, @Valid AdminChangeRoleRequest payload, @Context SecurityContext ctx) {
         Long adminId = Long.parseLong(ctx.getUserPrincipal().getName());
         if (adminId.equals(id)) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -190,7 +193,7 @@ public class AdminResource {
                     .build();
         }
 
-        String roleStr = payload != null ? payload.get("role") : null;
+        String roleStr = payload != null ? payload.getRole() : null;
         if (roleStr == null || (!roleStr.equals("USER") && !roleStr.equals("ADMIN"))) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Quyền hạn không hợp lệ! Chỉ chấp nhận USER hoặc ADMIN.")
