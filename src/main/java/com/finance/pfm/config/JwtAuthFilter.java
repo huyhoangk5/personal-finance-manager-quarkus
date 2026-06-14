@@ -47,6 +47,7 @@ public class JwtAuthFilter implements ContainerRequestFilter {
             "/api/users/qr-login/status",
             "/api/users/qr-code-by-email",
             "/api/users/qr-register",
+            "/api/health",
             "/q/health",
             "/q/health/live",
             "/q/health/ready",
