@@ -11,6 +11,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 @ApplicationScoped
 public class DashboardService {
@@ -62,6 +63,24 @@ public class DashboardService {
             stats.put((String) result[0], convertToDouble(result[1]));
         }
         return stats;
+    }
+
+    public List<Map<String, Object>> getRecentTransactions(Long userId, int days) {
+        LocalDate fromDate = LocalDate.now().minusDays(days - 1);
+        String fromStr = fromDate.toString(); // yyyy-MM-dd
+        String toStr = LocalDate.now().toString();
+        var txList = transactionRepository.findByUserIdAndDateRange(userId, fromStr, toStr);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var tx : txList) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("date", tx.date.toString());
+            item.put("type", tx.type.name());
+            item.put("amount", tx.amount);
+            item.put("category", tx.category != null ? tx.category.categoryName : "Không rõ");
+            item.put("note", tx.note != null ? tx.note : "");
+            result.add(item);
+        }
+        return result;
     }
 
     public List<Map<String, Object>> getTopSpendingCategories(Long userId, int limit) {

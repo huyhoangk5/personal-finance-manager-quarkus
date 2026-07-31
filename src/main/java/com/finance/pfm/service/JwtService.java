@@ -43,7 +43,7 @@ public class JwtService {
     String issuer;
 
     @ConfigProperty(name = "smallrye.jwt.sign.key", defaultValue = "")
-    String privateKeyContent;
+    Optional<String> privateKeyContent;
 
     // Cache parsed PrivateKey để tránh parse lại mỗi request
     private volatile PrivateKey cachedPrivateKey;
@@ -93,8 +93,8 @@ public class JwtService {
         String token;
 
         // Ưu tiên 1: Parse private key từ env var JWT_PRIVATE_KEY
-        if (privateKeyContent != null && !privateKeyContent.trim().isEmpty()) {
-            PrivateKey pk = getPrivateKeyFromContent(privateKeyContent);
+        if (privateKeyContent != null && privateKeyContent.isPresent() && !privateKeyContent.get().trim().isEmpty()) {
+            PrivateKey pk = getPrivateKeyFromContent(privateKeyContent.get());
             if (pk != null) {
                 token = builder.sign(pk);
             } else {
