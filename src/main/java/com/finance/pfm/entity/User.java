@@ -19,7 +19,7 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false, unique = true, name = "username", length = 50)
     public String username;
 
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     @NotBlank(message = "Mật khẩu không được để trống")
     @Column(nullable = false, name = "password")
     public String password;
