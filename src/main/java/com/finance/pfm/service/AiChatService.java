@@ -3,6 +3,9 @@ package com.finance.pfm.service;
 import com.finance.pfm.dto.request.AiChatRequest;
 import com.finance.pfm.entity.AiChatMessage;
 import com.finance.pfm.repository.AiChatMessageRepository;
+import com.finance.pfm.repository.BudgetRepository;
+import com.finance.pfm.repository.CategoryRepository;
+import com.finance.pfm.repository.TransactionRepository;
 import com.finance.pfm.repository.UserRepository;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.memory.ChatMemory;
@@ -41,6 +44,18 @@ public class AiChatService {
     @Inject
     DashboardService dashboardService;
 
+    @Inject
+    CategoryService categoryService;
+
+    @Inject
+    CategoryRepository categoryRepository;
+
+    @Inject
+    TransactionRepository transactionRepository;
+
+    @Inject
+    BudgetRepository budgetRepository;
+
     // ─── Interface cho AiServices ────────────────────────────────────────────
     interface FinancialAssistant {
         @SystemMessage("""
@@ -53,6 +68,16 @@ public class AiChatService {
                 4. Sử dụng đơn vị VNĐ, định dạng số có dấu chấm phân cách hàng nghìn.
                 5. Từ chối câu hỏi ngoài lĩnh vực tài chính cá nhân một cách lịch sự.
                 6. Đưa ra nhận xét, phân tích xu hướng và lời khuyên hữu ích khi có đủ dữ liệu.
+
+                KHẢ NĂNG GHI GIAO DỊCH:
+                7. Khi người dùng đề cập đến một khoản thu/chi cụ thể (mua đồ, nhận lương, trả tiền, v.v.), hãy dùng hàm saveTransaction() để lưu ngay.
+                   - Trước tiên gọi getUserCategories() để kiểm tra danh mục phù hợp đã tồn tại chưa.
+                   - Nếu danh mục chưa tồn tại: vẫn gọi saveTransaction() bình thường — hệ thống sẽ tự tạo danh mục mới và thông báo lại.
+                   - KHÔNG hỏi lại người dùng xem có muốn lưu không nếu thông tin đã đủ (có số tiền, loại thu/chi, danh mục gợi ý).
+                   - Sau khi lưu thành công, thông báo kết quả rõ ràng cho người dùng.
+                8. Quy tắc chuyển đổi số tiền: "k"/"nghìn" = ×1.000; "triệu"/"tr" = ×1.000.000. VD: "8 triệu" → 8000000, "50k" → 50000.
+                9. Quy tắc xác định loại: mua/chi/trả/tiêu → CHI; nhận/lương/thu/bán/hoàn → THU.
+                10. Ngày: "hôm nay" → ngày hiện tại (gọi getCurrentDate()); nếu người dùng nêu ngày cụ thể → dùng ngày đó.
                 """)
         String chat(String userMessage);
     }
@@ -76,7 +101,14 @@ public class AiChatService {
             saveMessage(sessionId, userId, "USER", request.message);
 
             // Tạo FinancialTools instance riêng cho userId này
-            FinancialTools tools = new FinancialTools(dashboardService, userId);
+            FinancialTools tools = new FinancialTools(
+                    dashboardService,
+                    categoryService,
+                    categoryRepository,
+                    transactionRepository,
+                    budgetRepository,
+                    userRepository,
+                    userId);
 
             // Tải lịch sử chat gần đây vào ChatMemory
             ChatMemory memory = MessageWindowChatMemory.withMaxMessages(6);

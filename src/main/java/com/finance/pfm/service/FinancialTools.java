@@ -1,25 +1,54 @@
 package com.finance.pfm.service;
 
+import com.finance.pfm.entity.Budget;
+import com.finance.pfm.entity.Category;
+import com.finance.pfm.entity.Transaction;
+import com.finance.pfm.entity.User;
+import com.finance.pfm.repository.BudgetRepository;
+import com.finance.pfm.repository.CategoryRepository;
+import com.finance.pfm.repository.TransactionRepository;
+import com.finance.pfm.repository.UserRepository;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Lớp công cụ (Tools) cung cấp cho AI khả năng tự chủ động truy vấn dữ liệu tài chính.
+ * Lớp công cụ (Tools) cung cấp cho AI khả năng tự chủ động truy vấn và ghi dữ liệu tài chính.
  * Mỗi instance được khởi tạo với userId cụ thể tại thời điểm request để đảm bảo an toàn phân quyền.
  *
  * AI sẽ đọc mô tả @Tool và tự quyết định gọi hàm nào dựa trên câu hỏi của người dùng.
  */
 public class FinancialTools {
 
+    private static final double DEFAULT_CHI_BUDGET_LIMIT = 1_800_000.0;
+
     private final DashboardService dashboardService;
+    private final CategoryService categoryService;
+    private final CategoryRepository categoryRepository;
+    private final TransactionRepository transactionRepository;
+    private final BudgetRepository budgetRepository;
+    private final UserRepository userRepository;
     private final Long userId;
 
-    public FinancialTools(DashboardService dashboardService, Long userId) {
+    public FinancialTools(DashboardService dashboardService,
+                          CategoryService categoryService,
+                          CategoryRepository categoryRepository,
+                          TransactionRepository transactionRepository,
+                          BudgetRepository budgetRepository,
+                          UserRepository userRepository,
+                          Long userId) {
         this.dashboardService = dashboardService;
+        this.categoryService = categoryService;
+        this.categoryRepository = categoryRepository;
+        this.transactionRepository = transactionRepository;
+        this.budgetRepository = budgetRepository;
+        this.userRepository = userRepository;
         this.userId = userId;
     }
 
@@ -113,5 +142,120 @@ public class FinancialTools {
                     tx.get("note").toString().isBlank() ? "(không có ghi chú)" : tx.get("note")));
         }
         return sb.toString();
+    }
+
+    @Tool("Lấy danh sách tất cả danh mục hiện có của người dùng (cả thu và chi). Dùng trước khi lưu giao dịch để kiểm tra danh mục đã tồn tại chưa.")
+    public String getUserCategories() {
+        List<Category> categories = categoryRepository.findByUser_UserId(userId);
+        if (categories.isEmpty()) {
+            return "Người dùng chưa có danh mục nào.";
+        }
+        String list = categories.stream()
+                .map(c -> String.format("  - id=%d | \"%s\" | loại=%s", c.categoryId, c.categoryName, c.type))
+                .collect(Collectors.joining("\n"));
+        return "Danh mục hiện có:\n" + list;
+    }
+
+    @Tool("""
+            Lưu một giao dịch tài chính mới vào hệ thống.
+            - amount: số tiền dương (ví dụ: 8000000 cho 8 triệu, 50000 cho 50k)
+            - type: "THU" (thu nhập) hoặc "CHI" (chi tiêu)
+            - categoryName: tên danh mục tiếng Việt (ví dụ: "Mua sắm", "Ăn uống", "Lương")
+            - date: ngày giao dịch định dạng yyyy-MM-dd (ví dụ: "2026-08-04"), hoặc null để dùng ngày hôm nay
+            - note: ghi chú mô tả giao dịch, hoặc null nếu không có
+
+            Nếu danh mục chưa tồn tại → tự động tạo mới và thông báo cho người dùng.
+            Với danh mục CHI mới: tạo hạn mức ngân sách mặc định 1.800.000đ/tháng (người dùng có thể chỉnh sau).
+            Dùng hàm này khi người dùng muốn thêm/ghi lại/lưu một giao dịch qua chat.
+            """)
+    public String saveTransaction(
+            @P("Số tiền giao dịch, luôn dương") double amount,
+            @P("Loại giao dịch: THU hoặc CHI") String type,
+            @P("Tên danh mục tiếng Việt") String categoryName,
+            @P("Ngày giao dịch yyyy-MM-dd, hoặc null") String date,
+            @P("Ghi chú mô tả, hoặc null") String note) {
+        try {
+            User user = userRepository.findById(userId);
+            if (user == null) return "Lỗi: Không tìm thấy người dùng.";
+
+            Category.TransactionType txType;
+            try {
+                txType = Category.TransactionType.valueOf(type.toUpperCase().trim());
+            } catch (Exception e) {
+                return "Lỗi: Loại giao dịch không hợp lệ. Chỉ chấp nhận 'THU' hoặc 'CHI'.";
+            }
+
+            // Tìm danh mục khớp tên (case-insensitive) và loại
+            final Category.TransactionType finalTxType = txType;
+            Optional<Category> existingCat = categoryRepository.findByUser_UserId(userId).stream()
+                    .filter(c -> c.categoryName.trim().equalsIgnoreCase(categoryName.trim())
+                            && c.type.equals(finalTxType))
+                    .findFirst();
+
+            Category category;
+            boolean newCategoryCreated = false;
+
+            if (existingCat.isPresent()) {
+                category = existingCat.get();
+            } else {
+                // Tạo danh mục mới qua CategoryService (đảm bảo validation + cache invalidation)
+                category = new Category();
+                category.categoryName = categoryName.trim();
+                category.type = txType;
+                category.user = user;
+                String createResult = categoryService.createCategory(category);
+                if (createResult.startsWith("Lỗi")) {
+                    return "Không thể tạo danh mục: " + createResult;
+                }
+                newCategoryCreated = true;
+
+                // Tạo budget mặc định 1.800.000đ cho danh mục CHI mới
+                if (txType == Category.TransactionType.CHI) {
+                    String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                    Budget defaultBudget = new Budget();
+                    defaultBudget.user = user;
+                    defaultBudget.category = category;
+                    defaultBudget.categoryLimit = DEFAULT_CHI_BUDGET_LIMIT;
+                    defaultBudget.totalLimit = DEFAULT_CHI_BUDGET_LIMIT;
+                    defaultBudget.month = currentMonth;
+                    budgetRepository.persist(defaultBudget);
+                }
+            }
+
+            // Xác nhận type khớp danh mục
+            if (!category.type.equals(txType)) {
+                return String.format("Lỗi: Danh mục \"%s\" là loại %s, không khớp với loại giao dịch %s.",
+                        categoryName, category.type, type);
+            }
+
+            // Tạo và lưu giao dịch
+            Transaction tx = new Transaction();
+            tx.amount = amount;
+            tx.type = txType;
+            tx.user = user;
+            tx.category = category;
+            tx.note = (note == null || note.isBlank() || "null".equalsIgnoreCase(note)) ? null : note.trim();
+            try {
+                tx.date = (date == null || date.isBlank() || "null".equalsIgnoreCase(date))
+                        ? LocalDate.now()
+                        : LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (Exception e) {
+                tx.date = LocalDate.now();
+            }
+            transactionRepository.persist(tx);
+
+            // Xây dựng thông báo kết quả
+            String sign = txType == Category.TransactionType.CHI ? "-" : "+";
+            String newCatMsg = newCategoryCreated
+                    ? String.format(" (đã tạo danh mục mới \"%s\"%s)",
+                        categoryName,
+                        txType == Category.TransactionType.CHI ? " với hạn mức mặc định 1.800.000đ/tháng" : "")
+                    : "";
+            return String.format("✅ Đã lưu giao dịch: %s%,.0f VNĐ | Danh mục: %s | Ngày: %s%s",
+                    sign, amount, category.categoryName, tx.date, newCatMsg);
+
+        } catch (Exception e) {
+            return "Lỗi hệ thống khi lưu giao dịch: " + e.getMessage();
+        }
     }
 }
