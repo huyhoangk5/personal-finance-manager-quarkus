@@ -15,7 +15,6 @@ import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +45,15 @@ public class AiTransactionService {
 
     @Inject
     BudgetService budgetService;
+
+    @Inject
+    CategoryService categoryService;
+
+    @Inject
+    BudgetRepository budgetRepository;
+
+    /** Hạn mức mặc định cho danh mục CHI do AI tạo tự động: 1.800.000đ */
+    private static final double DEFAULT_CHI_BUDGET_LIMIT = 1_800_000.0;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -139,13 +147,47 @@ public class AiTransactionService {
                 return "Danh mục không tồn tại hoặc không thuộc về bạn.";
             }
         } else if (req.newCategoryName != null && !req.newCategoryName.isBlank()) {
-            // Tự động tạo danh mục mới
-            category = new Category();
-            category.categoryName = req.newCategoryName.trim();
-            category.type = Category.TransactionType.valueOf(req.type.toUpperCase());
-            category.user = user;
-            categoryRepository.persist(category);
-            LOG.infof("AI tự động tạo danh mục mới: '%s' (userId=%d)", category.categoryName, userId);
+            // Kiểm tra xem danh mục có tên này đã tồn tại chưa (AI có thể đặt tên trùng)
+            Category.TransactionType newCatType = Category.TransactionType.valueOf(req.type.toUpperCase());
+            String normalizedReqName = req.newCategoryName.trim().toLowerCase();
+            java.util.Optional<Category> existingByName = categoryRepository
+                    .findByUser_UserId(userId).stream()
+                    .filter(c -> c.categoryName.trim().equalsIgnoreCase(normalizedReqName)
+                            && c.type.equals(newCatType))
+                    .findFirst();
+
+            if (existingByName.isPresent()) {
+                // Danh mục đã tồn tại (tên trùng khớp) → dùng lại, không tạo mới
+                category = existingByName.get();
+                LOG.infof("AI tìm thấy danh mục trùng tên '%s', dùng lại id=%d (userId=%d)",
+                        category.categoryName, category.categoryId, userId);
+            } else {
+                // Tạo danh mục mới qua CategoryService để đảm bảo validation + cache invalidation
+                category = new Category();
+                category.categoryName = req.newCategoryName.trim();
+                category.type = newCatType;
+                category.user = user;
+                String createResult = categoryService.createCategory(category);
+                if (createResult.startsWith("Lỗi")) {
+                    return "Không thể tạo danh mục: " + createResult;
+                }
+                LOG.infof("AI tự động tạo danh mục mới: '%s' loại=%s (userId=%d)",
+                        category.categoryName, category.type, userId);
+
+                // Với danh mục CHI: tạo budget mặc định 1.800.000đ cho tháng hiện tại
+                if (newCatType == Category.TransactionType.CHI) {
+                    String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                    Budget defaultBudget = new Budget();
+                    defaultBudget.user = user;
+                    defaultBudget.category = category;
+                    defaultBudget.categoryLimit = DEFAULT_CHI_BUDGET_LIMIT;
+                    defaultBudget.totalLimit = DEFAULT_CHI_BUDGET_LIMIT;
+                    defaultBudget.month = currentMonth;
+                    budgetRepository.persist(defaultBudget);
+                    LOG.infof("Tạo budget mặc định %.0fđ cho danh mục '%s' tháng %s (userId=%d)",
+                            DEFAULT_CHI_BUDGET_LIMIT, category.categoryName, currentMonth, userId);
+                }
+            }
         } else {
             return "Vui lòng chọn hoặc xác nhận danh mục cho giao dịch.";
         }
