@@ -40,7 +40,7 @@ public class User extends PanacheEntityBase {
     @Column(name = "is_locked", nullable = true)
     public Boolean locked = false;
 
-    @Column(name = "auth_provider", nullable = false, length = 20)
+    @Column(name = "auth_provider", nullable = false, length = 20, columnDefinition = "varchar(20) default 'LOCAL' not null")
     public String authProvider = "LOCAL";
 
     public boolean isLocked() {
