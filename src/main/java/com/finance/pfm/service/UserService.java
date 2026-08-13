@@ -81,6 +81,7 @@ public class UserService {
             // Tự động cập nhật các bản ghi cũ chưa có cột role và locked
             User.update("role = ?1 where role is null", User.Role.USER);
             User.update("locked = false where locked is null");
+            User.update("authProvider = 'LOCAL' where authProvider is null");
 
             if (userRepository.count("role = ?1", User.Role.ADMIN) == 0) {
                 User admin = new User();
@@ -193,7 +194,14 @@ public class UserService {
                     user.password = BcryptUtil.bcryptHash(UUID.randomUUID().toString());
                     user.email = email;
                     user.fullName = name;
+                    user.authProvider = "GOOGLE";
                     userRepository.persist(user);
+                } else {
+                    // Update legacy google logins to have GOOGLE provider if registered prior
+                    if (!"GOOGLE".equals(user.authProvider)) {
+                        user.authProvider = "GOOGLE";
+                        userRepository.persist(user);
+                    }
                 }
                 return Optional.of(user);
             }
@@ -214,6 +222,7 @@ public class UserService {
             user.password = BcryptUtil.bcryptHash(UUID.randomUUID().toString());
             user.email = email;
             user.fullName = "Facebook User";
+            user.authProvider = "FACEBOOK";
             userRepository.persist(user);
         }
         return Optional.of(user);

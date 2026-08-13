@@ -30,7 +30,13 @@ public class UserDTO {
         dto.lastLoginAt = user.lastLoginAt;
 
         // Xử lý loại xác thực và trạng thái OTP dựa trên thông tin sẵn có
-        if (user.username != null) {
+        if ("GOOGLE".equals(user.authProvider)) {
+            dto.authType = "Google OAuth";
+            dto.otpStatus = "Đã liên kết";
+        } else if ("FACEBOOK".equals(user.authProvider)) {
+            dto.authType = "Facebook OAuth";
+            dto.otpStatus = "Đã liên kết";
+        } else if (user.username != null) {
             if (user.username.startsWith("qr_")) {
                 dto.authType = "QR Code";
                 dto.otpStatus = "Không dùng";
@@ -48,8 +54,8 @@ public class UserDTO {
                 dto.otpStatus = (user.email != null && !user.email.isEmpty()) ? "Đã xác thực Email" : "Chưa xác thực OTP";
             }
         } else {
-            dto.authType = "Không xác định";
-            dto.otpStatus = "Không dùng";
+            dto.authType = "Mật khẩu truyền thống";
+            dto.otpStatus = "Chưa xác thực OTP";
         }
 
         return dto;
