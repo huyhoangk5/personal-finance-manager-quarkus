@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 
 /**
  * Service xử lý tính năng Nhập liệu thông minh (Smart Data Entry).
- * Sử dụng Groq Llama 3.3 để phân tích câu lệnh ngôn ngữ tự nhiên.
+ * Sử dụng Groq GPT-OSS 120B để phân tích câu lệnh ngôn ngữ tự nhiên.
  */
 @ApplicationScoped
 public class AiTransactionService {

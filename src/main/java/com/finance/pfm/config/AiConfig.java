@@ -17,6 +17,7 @@ import java.util.Optional;
 
 /**
  * Cấu hình khởi tạo các model AI thông qua Groq (sử dụng chuẩn OpenAI).
+ * Model: OpenAI GPT-OSS 120B (flagship open-weight, production-grade).
  * Đọc API Key qua Quarkus Config (application.properties / .env / biến môi trường).
  */
 @ApplicationScoped
@@ -24,7 +25,7 @@ public class AiConfig {
 
     private static final Logger LOG = Logger.getLogger(AiConfig.class);
 
-    private static final String MODEL_ID = "llama-3.3-70b-versatile";
+    private static final String MODEL_ID = "openai/gpt-oss-120b";
     private static final String BASE_URL = "https://api.groq.com/openai/v1";
 
     @ConfigProperty(name = "groq.api.key")
@@ -48,14 +49,14 @@ public class AiConfig {
             // Trả về model noop để app vẫn khởi động được, tránh NPE
             return (messages) -> { throw new RuntimeException("GROQ_API_KEY chưa được cấu hình. Tính năng AI không khả dụng."); };
         }
-        LOG.info("[AiConfig] Khởi tạo ChatLanguageModel (Groq Llama 3).");
+        LOG.info("[AiConfig] Khởi tạo ChatLanguageModel (Groq GPT-OSS 120B).");
         return OpenAiChatModel.builder()
                 .baseUrl(BASE_URL)
                 .apiKey(apiKey)
                 .modelName(MODEL_ID)
                 .temperature(0.2)
                 .maxRetries(0)
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(30))
                 .build();
     }
 
@@ -67,7 +68,7 @@ public class AiConfig {
             return (messages, handler) -> handler.onError(
                 new RuntimeException("GROQ_API_KEY chưa được cấu hình. Tính năng AI không khả dụng."));
         }
-        LOG.info("[AiConfig] Khởi tạo StreamingChatLanguageModel (Groq Llama 3).");
+        LOG.info("[AiConfig] Khởi tạo StreamingChatLanguageModel (Groq GPT-OSS 120B).");
         return OpenAiStreamingChatModel.builder()
                 .baseUrl(BASE_URL)
                 .apiKey(apiKey)
